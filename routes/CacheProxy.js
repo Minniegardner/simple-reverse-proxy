@@ -3,6 +3,7 @@ const router = require("express").Router();
 const fetch = require("node-fetch");
 const https = require("https");
 const os = require('os');
+const fs = require('fs'); // <--- TAMBAHKAN: Module fs untuk menulis ke file
 
 // bypass ssl
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -61,6 +62,7 @@ router.get("/:ip/cache/*", async (req, res, next) => {
             console.log(`Blocked blacklisted URL: ${originalUrl}`);
             return res.status(404).send('Access Denied');
         }
+        
         // Check memory usage before processing
         checkMemoryUsage();
 
@@ -122,6 +124,18 @@ router.get("/:ip/cache/*", async (req, res, next) => {
         }
 
         const response = await fetch('https:/' + req.originalUrl, options);
+        
+        // --- LOGGING 404 MISSING FILES ---
+        if (response.status === 404) {
+            const timestamp = new Date().toISOString();
+            const logMessage = `[${timestamp}] 404 Not Found: ${req.originalUrl}\n`;
+            
+            // Append ke file miss.txt (menggunakan appendFile agar tidak blocking proses utama)
+            fs.appendFile('miss.txt', logMessage, (err) => {
+                if (err) console.error('Error writing to miss.txt:', err);
+            });
+        }
+        // ---------------------------------
         
         // Prepare response headers
         const responseHeaders = {};
